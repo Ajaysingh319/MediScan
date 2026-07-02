@@ -1,0 +1,12 @@
+/* Print styles: when saving the report as PDF, show only the report area. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  #report-print-area {
+    padding: 0;
+  }
+}

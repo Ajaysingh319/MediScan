@@ -1,30 +1,38 @@
 import { createWorker } from "tesseract.js";
+import { unprocessable, upstreamError } from "../utils/AppError.js";
+import { logger } from "../utils/logger.js";
 
+/**
+ * Runs OCR on an image buffer and returns the recognized text.
+ * Throws a clean 422 if the image contains no readable text.
+ */
 export const performOCR = async (imageBuffer) => {
-  console.log("--- Real OCR Service Called ---");
   let worker;
   try {
     worker = await createWorker("eng");
+    // PSM 6 = assume a single uniform block of text; best for tabular reports.
+    await worker.setParameters({ tessedit_pageseg_mode: "6" });
 
-    // ADD THIS LINE to improve table recognition.
-    // This tells Tesseract to assume a single uniform block of text.
-    await worker.setParameters({
-      tessedit_pageseg_mode: "6",
-    });
-
-    console.log("Recognizing text from image with improved settings...");
+    logger.info("OCR: recognizing text from image");
     const result = await worker.recognize(imageBuffer);
-    console.log("OCR finished.");
-    console.log(result);
+    const text = result?.data?.text?.trim() || "";
 
-    return result.data.text;
+    if (!text) {
+      throw unprocessable(
+        "We couldn't read any text from that image. Try a clearer, higher-resolution photo.",
+        "OCR_EMPTY"
+      );
+    }
+
+    logger.info("OCR: finished", { chars: text.length });
+    return text;
   } catch (error) {
-    console.error("Error during OCR processing:", error);
-    throw error;
+    if (error?.isOperational) throw error;
+    logger.error("OCR failed", { message: error?.message });
+    throw upstreamError("Failed to process the image. Please try again.", "OCR_FAILED");
   } finally {
     if (worker) {
       await worker.terminate();
-      console.log("OCR worker terminated.");
     }
   }
 };

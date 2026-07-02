@@ -1,38 +1,34 @@
 import { performOCR } from "../services/ocrService.js";
 import { getSimplifiedReport } from "../services/aiService.js";
+import { badRequest } from "../utils/AppError.js";
+import { logger } from "../utils/logger.js";
 
-export const simplifyReport = async (req, res) => {
-  try {
-    let rawText;
+const MAX_TEXT_LENGTH = 20_000;
 
-    // 1. Determine input and get raw text
-    if (req.file) {
-      console.log("Image received. Processing with OCR service...");
-      // We will build this service next. For now, it's a placeholder.
-      rawText = await performOCR(req.file.buffer);
-    } else if (req.body && req.body.text) {
-      console.log("Raw text received.");
-      rawText = req.body.text;
-    } else {
-      // If no valid input, send an error
-      return res.status(400).json({
-        status: "error",
-        message:
-          'No file uploaded or text provided. Please use the "reportImage" key for files or a "text" key in the JSON body.',
-      });
+/** Wraps an async handler so thrown/rejected errors reach the central handler. */
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+export const simplifyReport = asyncHandler(async (req, res) => {
+  let rawText;
+
+  if (req.file) {
+    logger.info("Report received via image upload", { size: req.file.size });
+    rawText = await performOCR(req.file.buffer);
+  } else if (req.body?.text && typeof req.body.text === "string" && req.body.text.trim()) {
+    const text = req.body.text.trim();
+    if (text.length > MAX_TEXT_LENGTH) {
+      throw badRequest(`Text is too long (max ${MAX_TEXT_LENGTH} characters).`, "TEXT_TOO_LONG");
     }
-
-    // 2. Pass the raw text to the AI service (placeholder for now)
-    console.log("Sending text to AI service...");
-    const simplifiedReport = await getSimplifiedReport(rawText);
-
-    // 3. Send the final report back to the client
-    res.status(200).json({
-      status: "success",
-      report: simplifiedReport,
-    });
-  } catch (error) {
-    console.error("Error in simplifyReport controller:", error);
-    res.status(500).json({ status: "error", message: "Internal Server Error" });
+    logger.info("Report received via pasted text", { chars: text.length });
+    rawText = text;
+  } else {
+    throw badRequest(
+      'Provide either an image (form field "reportImage") or non-empty "text" in the JSON body.',
+      "NO_INPUT"
+    );
   }
-};
+
+  const report = await getSimplifiedReport(rawText);
+
+  res.status(200).json({ status: "success", report });
+});

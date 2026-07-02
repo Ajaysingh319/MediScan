@@ -1,11 +1,11 @@
 import { Router } from "express";
-import multer from "multer";
 import { simplifyReport } from "../controllers/reportController.js";
+import { uploadReportImage } from "../middleware/upload.js";
+import { analyzeLimiter } from "../middleware/rateLimit.js";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
-// This will handle POST requests to /api/reports/simplify
-router.post("/simplify", upload.single("reportImage"), simplifyReport);
+// POST /api/reports/simplify — accepts an image ("reportImage") or JSON { text }.
+router.post("/simplify", analyzeLimiter, uploadReportImage, simplifyReport);
 
 export default router;
