@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import { env } from "./src/config/env.js";
+import "./src/config/db.js"; // initialize the database on boot
 import { logger } from "./src/utils/logger.js";
+import authRoutes from "./src/routes/authRoutes.js";
 import reportRoutes from "./src/routes/reportRoutes.js";
 import { notFound, errorHandler } from "./src/middleware/errorHandler.js";
 
@@ -20,6 +22,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", uptime: process.uptime(), env: env.nodeEnv });
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
 
 // 404 + centralized error handling (must be last).

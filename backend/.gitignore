@@ -11,3 +11,7 @@ yarn-error.log*
 
 # Build output folder
 /dist
+# SQLite database
+/data
+*.db
+*.db-*

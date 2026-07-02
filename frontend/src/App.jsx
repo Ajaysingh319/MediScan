@@ -1,10 +1,12 @@
 import { lazy, Suspense, useState } from "react";
-import { Alert, Box, Card, Container, Skeleton, Stack } from "@mui/material";
+import { Alert, Box, Card, CircularProgress, Container, Skeleton, Stack } from "@mui/material";
 import Header from "./components/Header";
 import Disclaimer from "./components/Disclaimer";
 import ReportInput from "./components/ReportInput";
 import ResultsView from "./components/ResultsView";
 import HistoryPanel from "./components/HistoryPanel";
+import AuthPage from "./components/auth/AuthPage";
+import { useAuth } from "./context/AuthContext";
 import { useHistory } from "./hooks/useHistory";
 import { analyzeReport, getErrorMessage } from "./api/client";
 import "./App.css";
@@ -12,7 +14,7 @@ import "./App.css";
 // recharts is heavy — load it only when there's history to chart.
 const TrendChart = lazy(() => import("./components/TrendChart"));
 
-function App() {
+function MediScanApp() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -75,6 +77,21 @@ function App() {
       )}
     </Container>
   );
+}
+
+/** Gates the app behind authentication: spinner → login/signup → app. */
+function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return user ? <MediScanApp /> : <AuthPage />;
 }
 
 export default App;

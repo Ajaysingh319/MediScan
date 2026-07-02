@@ -6,6 +6,15 @@ const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const api = axios.create({ baseURL, timeout: 60_000 });
 
+export const TOKEN_KEY = "mediscan:token";
+
+/** Attach the stored JWT to every request. */
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 /** Extracts a user-friendly message from an axios error, preferring the API's. */
 export const getErrorMessage = (err) => {
   if (err?.response?.data?.message) return err.response.data.message;
@@ -14,6 +23,25 @@ export const getErrorMessage = (err) => {
     return "Can't reach the server. Make sure the backend is running.";
   return "Something went wrong. Please try again.";
 };
+
+// --- Auth ------------------------------------------------------------------
+
+export const registerRequest = async ({ name, email, password }) => {
+  const res = await api.post("/api/auth/register", { name, email, password });
+  return res.data; // { token, user }
+};
+
+export const loginRequest = async ({ email, password }) => {
+  const res = await api.post("/api/auth/login", { email, password });
+  return res.data; // { token, user }
+};
+
+export const fetchMe = async () => {
+  const res = await api.get("/api/auth/me");
+  return res.data.user;
+};
+
+// --- Reports ---------------------------------------------------------------
 
 /**
  * Sends a report (image File or pasted text) to the backend and returns the
